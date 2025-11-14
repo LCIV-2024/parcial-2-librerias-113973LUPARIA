@@ -79,11 +79,52 @@ class ReservationServiceTest {
     @Test
     void testCreateReservation_Success() {
         // TODO: Implementar el test de creación de reserva exitosa
+
+        ReservationRequestDTO requestDTO = new ReservationRequestDTO();
+        requestDTO.setUserId(1L);
+        requestDTO.setBookExternalId(258027L);
+        requestDTO.setRentalDays(7);
+        requestDTO.setStartDate(LocalDate.now());
+        
+        when(userService.getUserEntity(1L)).thenReturn(testUser);
+        when(bookRepository.findByExternalId(258027L)).thenReturn(Optional.of(testBook));
+        when(reservationRepository.save(any(Reservation.class))).thenReturn(testReservation);
+
+        ReservationResponseDTO result = reservationService.createReservation(requestDTO);
+
+        assertNotNull(result);
+        assertEquals(1L, result.getId());
+        assertEquals("Juan Pérez", result.getUserName());
+        assertEquals("The Lord of the Rings", result.getBookTitle());
+        assertEquals(new BigDecimal("111.93"), result.getTotalFee());
     }
     
     @Test
     void testCreateReservation_BookNotAvailable() {
         // TODO: Implementar el test de creación de reserva cuando el libro no está disponible
+
+        ReservationRequestDTO requestDTO = new ReservationRequestDTO();
+        requestDTO.setUserId(1L);
+        requestDTO.setBookExternalId(258027L);
+        requestDTO.setRentalDays(7);
+        requestDTO.setStartDate(LocalDate.now());
+        
+        Book bookWithoutStock = new Book();
+        bookWithoutStock.setExternalId(258027L);
+        bookWithoutStock.setTitle("The Lord of the Rings");
+        bookWithoutStock.setPrice(new BigDecimal("15.99"));
+        bookWithoutStock.setAvailableQuantity(0);
+        
+        when(userService.getUserEntity(1L)).thenReturn(testUser);
+        when(bookRepository.findByExternalId(258027L)).thenReturn(Optional.of(bookWithoutStock));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            reservationService.createReservation(requestDTO);
+        });
+        
+        assertTrue(exception.getMessage().contains("No hay ejemplares disponibles"));
+        verify(bookService, never()).decreaseAvailableQuantity(anyLong());
+        verify(reservationRepository, never()).save(any(Reservation.class));
     }
     
     @Test
